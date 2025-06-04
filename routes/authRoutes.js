@@ -53,9 +53,20 @@ router.get('/admin/facebook/callback',
   facebookCallback
 );
 
-// Email/Password Auth Routes
+// Email/Password Auth Routes - Regular Users
 router.post('/register', register);
 router.post('/login', login);
+
+// Email/Password Auth Routes - Admin
+router.post('/admin/register', (req, res, next) => {
+  req.isAdminLogin = true;
+  register(req, res, next);
+});
+router.post('/admin/login', (req, res, next) => {
+  req.isAdminLogin = true;
+  login(req, res, next);
+});
+
 router.post('/verify-email', verifyEmail);
 
 // Get current logged in user

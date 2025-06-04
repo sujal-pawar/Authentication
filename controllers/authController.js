@@ -119,10 +119,11 @@ exports.updateUserRole = async (req, res) => {
 
 // @desc    Register user with email/password
 // @route   POST /api/auth/register
+//         POST /api/auth/admin/register
 // @access  Public
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, isAdmin } = req.body;
+    const { name, email, password } = req.body;
 
     // Check if user exists
     let user = await User.findOne({ email });
@@ -133,12 +134,12 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create user
+    // Create user with role based on registration endpoint
     user = await User.create({
       name,
       email,
       password,
-      role: isAdmin ? 'admin' : 'user'  // Set role based on registration type
+      role: req.isAdminLogin ? 'admin' : 'user'
     });
 
     // Generate OTP for verification
@@ -150,7 +151,7 @@ exports.register = async (req, res) => {
     if (process.env.NODE_ENV === 'development') {
       return res.status(200).json({
         success: true,
-        message: 'User registered. Please verify your email.',
+        message: `${req.isAdminLogin ? 'Admin' : 'User'} registered. Please verify your email.`,
         data: { 
           email,
           otp: process.env.NODE_ENV === 'development' ? otp : undefined
@@ -160,7 +161,7 @@ exports.register = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'User registered. Please verify your email.'
+      message: `${req.isAdminLogin ? 'Admin' : 'User'} registered. Please verify your email.`
     });
   } catch (error) {
     res.status(500).json({
@@ -172,6 +173,7 @@ exports.register = async (req, res) => {
 
 // @desc    Login user with email/password
 // @route   POST /api/auth/login
+//         POST /api/auth/admin/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
@@ -183,6 +185,22 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
+      });
+    }
+
+    // For admin login, verify user is actually an admin
+    if (req.isAdminLogin && user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized for admin access'
+      });
+    }
+
+    // For user login, verify user is not trying to access admin routes
+    if (!req.isAdminLogin && user.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Please use admin login'
       });
     }
 
@@ -204,7 +222,7 @@ exports.login = async (req, res) => {
     }
 
     // Generate token and send response
-    const token = signToken(user._id);
+    const token = generateToken(user._id);
     
     // Determine redirect URL based on role
     const redirectUrl = user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
