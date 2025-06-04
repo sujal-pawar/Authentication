@@ -229,56 +229,40 @@ exports.resendVerification = async (req, res) => {
 
 // @desc    Login user with email/password
 // @route   POST /api/auth/login
-//         POST /api/auth/admin/login
 // @access  Public
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // Check if email and password are provided
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
+      });
+    }
+
+    // Get user and include password and account lock fields
+    const user = await User.findOne({ email })
+      .select('+password +loginAttempts +lockUntil');
+
     // Check if user exists
-    const user = await User.findOne({ email }).select('+password');
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }    // Check if password matches
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
-    // For admin login, verify user is actually an admin
-    if (req.isAdminLogin && user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized for admin access'
-      });
-    }
-
-    // For user login, verify user is not trying to access admin routes
-    if (!req.isAdminLogin && user.role === 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Please use admin login'
-      });
-    }
-
-    // Check if email is verified
-    if (!user.isEmailVerified) {
-      // Generate new OTP if needed
-      const otp = user.generateOTP();
-      await user.save();
-
-      return res.status(401).json({
-        success: false,
-        message: 'Please verify your email first',
-        data: {
-          requiresVerification: true,
-          email,
-          otp: process.env.NODE_ENV === 'development' ? otp : undefined
-        }
-      });
-    }
-
     // Generate token and send response
-    const token = generateToken(user._id);
+    const token = signToken(user._id);
     
     // Determine redirect URL based on role
     const redirectUrl = user.role === 'admin' ? '/admin/dashboard' : '/dashboard';

@@ -38,14 +38,21 @@ passport.use(
       callbackURL: process.env.GOOGLE_CALLBACK_URL,
     },
       async (accessToken, refreshToken, profile, done) => {
-        try {
-          // Check if user already exists
-          let user = await User.findOne({ email: profile.emails[0].value });
+        try {          // Check if user already exists with Google ID or email
+          let user = await User.findOne({
+            $or: [
+              { 'google.id': profile.id },
+              { email: profile.emails[0].value }
+            ]
+          });
           
           if (user) {
-            // Update Google ID if not present
-            if (!user.googleId) {
-              user.googleId = profile.id;
+            // Update Google info if not present
+            if (!user.google.id) {
+              user.google = {
+                id: profile.id,
+                email: profile.emails[0].value
+              };
               await user.save();
             }
             return done(null, user);
@@ -53,9 +60,12 @@ passport.use(
           
           // Create new user
           user = await User.create({
-            googleId: profile.id,
             email: profile.emails[0].value,
             name: profile.displayName,
+            google: {
+              id: profile.id,
+              email: profile.emails[0].value
+            },
             isEmailVerified: true, // Email is verified through Google
             role: 'user' // Default role
         });
