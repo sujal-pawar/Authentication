@@ -57,9 +57,8 @@ passport.use(
             }
             return done(null, user);
           }
-          
-          // Create new user
-          user = await User.create({
+            // Create new user
+          const newUser = await User.create({
             email: profile.emails[0].value,
             name: profile.displayName,
             google: {
@@ -68,10 +67,9 @@ passport.use(
             },
             isEmailVerified: true, // Email is verified through Google
             role: 'user' // Default role
-        });
-        
-        await newUser.save();
-        done(null, newUser);
+          });
+          
+          done(null, newUser);
       } catch (error) {
         done(error, null);
       }
@@ -119,10 +117,10 @@ passport.use(
           facebook: {
             id: profile.id,
             email: email
-          },
-          email: email,
+          },          email: email,
           name: profile.displayName,
           role: 'user', // Default role is user
+          isEmailVerified: true, // Email is verified through Facebook
           avatar: profile.photos && profile.photos[0] ? profile.photos[0].value : ''
         });
         
