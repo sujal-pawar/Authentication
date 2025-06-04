@@ -87,18 +87,33 @@ passport.use(
       clientSecret: process.env.FACEBOOK_APP_SECRET,
       callbackURL: process.env.FACEBOOK_CALLBACK_URL,
       profileFields: ['id', 'emails', 'name', 'displayName', 'photos']
-    },
-    async (accessToken, refreshToken, profile, done) => {
+    },    async (accessToken, refreshToken, profile, done) => {
       try {
-        // Check if user already exists
-        const existingUser = await User.findOne({ 'facebook.id': profile.id });
+        // First try to find user by Facebook ID
+        let user = await User.findOne({ 'facebook.id': profile.id });
         
-        if (existingUser) {
-          return done(null, existingUser);
+        // If not found by Facebook ID, try finding by email
+        const email = profile.emails?.[0]?.value;
+        if (!user && email) {
+          user = await User.findOne({ email });
         }
         
-        // Create new user
-        const email = profile.emails && profile.emails[0] ? profile.emails[0].value : '';
+        if (user) {
+          // Update Facebook info if not present
+          if (!user.facebook.id) {
+            user.facebook = {
+              id: profile.id,
+              email: email
+            };
+            await user.save();
+          }
+          return done(null, user);
+        }
+        
+        // Create new user if doesn't exist
+        if (!email) {
+          return done(new Error('Email is required from Facebook'), null);
+        }
         const newUser = new User({
           method: 'facebook',
           facebook: {
