@@ -1,8 +1,28 @@
 # OAuth-Based Role-Based Authentication System
 
-This is a reusable OAuth-based role-based authentication system for hackathon projects. It supports authentication with Google and Facebook OAuth providers and includes role-based access control with two types of users: Admin and User.
+A complete authentication system with OAuth integration, role-based access control, and email verification. Built for easy integration with modern frontend frameworks.
 
 ## Features
+
+- 🔐 Multiple Authentication Methods:
+  - Email/Password with verification
+  - Google OAuth
+  - Facebook OAuth
+- 👥 Role-Based Access Control:
+  - Admin and User roles
+  - Protected routes
+  - Role-specific features
+- 🔒 Security Features:
+  - JWT with HTTP-only cookies
+  - Password hashing
+  - Email verification with OTP
+  - Refresh token rotation
+- 🎯 Frontend Integration Ready:
+  - CORS configured
+  - Works with any frontend
+  - Examples for React, Next.js, Vue
+- 📝 Comprehensive Documentation
+- ✨ Clean, maintainable code structure
 
 - Google and Facebook OAuth authentication
 - JWT-based authentication
@@ -87,16 +107,33 @@ npm start
 - `GET /api/users/:id`: Get user by ID
 - `DELETE /api/users/:id`: Delete user
 
-## Next.js Frontend Integration
+## Next.js Integration Guide
 
-1. Create authentication hooks in your Next.js app:
+### 1. Authentication Context
 
-```javascript
-// hooks/useAuth.js
-import { useState, useEffect, createContext, useContext } from 'react';
+```typescript
+// contexts/AuthContext.tsx
+import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-const AuthContext = createContext();
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: 'user' | 'admin';
+  isEmailVerified: boolean;
+}
+
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  verifyEmail: (email: string, otp: string) => Promise<void>;
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);

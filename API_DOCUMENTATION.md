@@ -1,403 +1,293 @@
-# Authentication API Documentation
+# Authentication Integration Guide
 
-Simple documentation for integrating with our authentication system.
+Simple guide for integrating authentication in React and Next.js applications.
 
-## Base URL
-```
-http://localhost:5000/api
-```
+## Available API Endpoints
 
-## Authentication Endpoints
-
-### 1. Register New User
-```http
-POST /auth/register
-Content-Type: application/json
-
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-Response:
-```json
-{
-  "success": true,
-  "message": "User registered. Please check your email for verification code.",
-  "data": {
-    "email": "john@example.com"
-  }
-}
-```
-
-### 2. Login
-```http
-POST /auth/login
-Content-Type: application/json
-
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-Response:
-```json
-{
-  "success": true,
-  "token": "jwt_token_here",
-  "redirectUrl": "/dashboard",
-  "data": {
-    "user": {
-      "name": "John Doe",
-      "email": "john@example.com",
-      "role": "user"
-    }
-  }
-}
-```
-
-### 3. Email Verification
-```http
-POST /auth/verify-email
-Content-Type: application/json
-
-{
-  "email": "john@example.com",
-  "otp": "123456"
-}
-```
-Response:
-```json
-{
-  "success": true,
-  "message": "Email verified successfully",
-  "token": "jwt_token_here"
-}
-```
-
-### 4. Resend Verification Email
-```http
-POST /auth/resend-verification
-Content-Type: application/json
-
-{
-  "email": "john@example.com"
-}
-```
-Response:
-```json
-{
-  "success": true,
-  "message": "Verification email sent successfully"
-}
-```
-
-### 5. OAuth Login Routes
-
-#### Google OAuth
-- Login: `GET /auth/google`
-- Admin Login: `GET /auth/admin/google`
-
-#### Facebook OAuth
-- Login: `GET /auth/facebook`
-- Admin Login: `GET /auth/admin/facebook`
-
-### 6. Get Current User
-```http
-GET /auth/user
-Authorization: Bearer your_jwt_token
-```
-Response:
-```json
-{
-  "success": true,
-  "data": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "role": "user",
-    "isEmailVerified": true
-  }
-}
-```
-
-### 7. Logout
-```http
-GET /auth/logout
-Authorization: Bearer your_jwt_token
-```
-Response:
-```json
-{
-  "success": true,
-  "message": "Successfully logged out"
-}
-```
-
-## Admin Endpoints
-
-### 1. Register Admin
-```http
-POST /auth/admin/register
-Content-Type: application/json
-
-{
-  "name": "Admin User",
-  "email": "admin@example.com",
-  "password": "adminpass123"
-}
-```
-
-### 2. Update User Role (Admin Only)
-```http
-PUT /auth/role/:userId
-Authorization: Bearer admin_jwt_token
-Content-Type: application/json
-
-{
-  "role": "admin"  // or "user"
-}
-```
-
-### 3. Get All Users (Admin Only)
-```http
-GET /users
-Authorization: Bearer admin_jwt_token
-```
-
-## Integration Guide
-
-### 1. Authentication Header
-For protected routes, include the JWT token in the Authorization header:
-```
-Authorization: Bearer your_jwt_token
-```
-
-### 2. CORS Support
-The API supports CORS for frontend integration. Make sure to include credentials in your requests:
 ```javascript
-fetch('http://localhost:5000/api/auth/login', {
-  method: 'POST',
-  credentials: 'include',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify(data)
-})
+BASE_URL = 'http://localhost:5000/api'
+
+// Auth endpoints
+POST   /auth/register      // Register new user
+POST   /auth/login        // Login user
+GET    /auth/logout       // Logout user
+POST   /auth/verify-email // Verify email with OTP
+GET    /auth/google       // Google OAuth login
+GET    /auth/facebook     // Facebook OAuth login
+GET    /auth/user         // Get current user
 ```
 
-### 3. Error Handling
-All endpoints return consistent error responses:
-```json
-{
-  "success": false,
-  "message": "Error message here"
-}
-```
+## React Integration
 
-### 4. OAuth Flow
-1. Redirect users to OAuth login routes (`/auth/google` or `/auth/facebook`)
-2. User authenticates with provider
-3. Backend redirects to your frontend with JWT token
-4. Store token and redirect to appropriate dashboard
+### 1. Auth Context Setup
+```jsx
+// src/context/AuthContext.js
+import { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
-## Frontend Integration Examples
+const AuthContext = createContext();
 
-### React Integration
-```javascript
-// Example using React hooks
-const useAuth = () => {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
+  // Check if user is logged in
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const res = await axios.get('/api/auth/user');
+        setUser(res.data.user);
+      } catch (err) {
+        setUser(null);
+      }
+      setLoading(false);
+    };
+    
+    checkUser();
+  }, []);
+
+  // Login function
   const login = async (email, password) => {
-    const res = await fetch('http://localhost:5000/api/auth/login', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setUser(data.data.user);
-    }
-    return data;
+    const res = await axios.post('/api/auth/login', { email, password });
+    setUser(res.data.user);
+    return res.data;
   };
 
+  // Logout function
   const logout = async () => {
-    await fetch('http://localhost:5000/api/auth/logout', {
-      method: 'GET',
-      credentials: 'include'
-    });
+    await axios.get('/api/auth/logout');
     setUser(null);
   };
 
-  return { user, login, logout };
-};
-```
-
-### Next.js Integration
-```javascript
-// pages/api/auth/[...nextauth].js
-import NextAuth from 'next-auth';
-
-export default NextAuth({
-  providers: [
-    Credentials({
-      async authorize(credentials) {
-        const res = await fetch('http://localhost:5000/api/auth/login', {
-          method: 'POST',
-          body: JSON.stringify(credentials),
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await res.json();
-        if (data.success) {
-          return data.data.user;
-        }
-        return null;
-      }
-    }),
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      authorizationUrl: 'http://localhost:5000/api/auth/google'
-    }),
-    Facebook({
-      clientId: process.env.FACEBOOK_APP_ID,
-      clientSecret: process.env.FACEBOOK_APP_SECRET,
-      authorizationUrl: 'http://localhost:5000/api/auth/facebook'
-    })
-  ],
-});
-```
-
-### Vue.js Integration
-```javascript
-// Example using Vue Composition API
-import { ref } from 'vue';
-
-export const useAuth = () => {
-  const user = ref(null);
-
-  const login = async (email, password) => {
-    const res = await fetch('http://localhost:5000/api/auth/login', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-    if (data.success) {
-      user.value = data.data.user;
-    }
-    return data;
-  };
-
-  return { user, login };
-};
-```
-
-## Environment Setup
-
-### Required Environment Variables
-```env
-# Backend URL
-REACT_APP_API_URL=http://localhost:5000/api  # For React
-NEXT_PUBLIC_API_URL=http://localhost:5000/api # For Next.js
-VITE_API_URL=http://localhost:5000/api        # For Vite-based projects
-
-# OAuth Credentials
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-FACEBOOK_APP_ID=your_facebook_app_id
-FACEBOOK_APP_SECRET=your_facebook_app_secret
-
-# JWT Secret
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=24h
-
-# Email Configuration
-EMAIL_SERVICE=gmail
-EMAIL_USER=your_email@gmail.com
-EMAIL_PASSWORD=your_app_specific_password
-```
-
-## Important CORS Considerations
-- The backend is configured to accept requests from any frontend origin in development
-- For production, set the correct CLIENT_URL in your backend .env file
-- All requests that require authentication must include credentials
-- Cookies are configured to work cross-domain in both development and production
-
-## Security Best Practices
-1. Store JWT tokens in HTTP-only cookies (already implemented in backend)
-2. Use environment variables for sensitive information
-3. Implement refresh token rotation (endpoint available)
-4. Always validate user session on frontend app load
-5. Handle token expiration gracefully
-
-## Common Integration Patterns
-
-### Protected Routes
-```javascript
-// React Example
-const PrivateRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <LoadingSpinner />;
-  return user ? children : <Navigate to="/login" />;
-};
-
-// Next.js Example
-export async function getServerSideProps({ req }) {
-  const token = req.cookies.token;
-  if (!token) {
-    return {
-      redirect: {
-        destination: '/login',
-        permanent: false,
-      },
-    };
-  }
-  return { props: {} };
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
+
+export const useAuth = () => useContext(AuthContext);
 ```
 
-### OAuth Button Implementation
-```javascript
-// Universal implementation that works with any framework
-const OAuthButton = ({ provider }) => {
-  const handleLogin = () => {
-    window.location.href = `http://localhost:5000/api/auth/${provider}`;
+### 2. Login Page
+```jsx
+// src/pages/Login.js
+import { useAuth } from '../context/AuthContext';
+
+export default function Login() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
+    }
   };
 
   return (
-    <button onClick={handleLogin}>
-      Login with {provider}
-    </button>
+    <div className="login-page">
+      <form onSubmit={handleSubmit}>
+        {error && <div className="error">{error}</div>}
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button type="submit">Login</button>
+        
+        {/* OAuth Buttons */}
+        <button onClick={() => window.location.href = '/api/auth/google'}>
+          Login with Google
+        </button>
+        <button onClick={() => window.location.href = '/api/auth/facebook'}>
+          Login with Facebook
+        </button>
+      </form>
+    </div>
   );
-};
+}
 ```
 
-### Error Handling
+### 3. Protected Route
+```jsx
+// src/components/ProtectedRoute.js
+import { useAuth } from '../context/AuthContext';
+
+export default function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading]);
+
+  if (loading) return <div>Loading...</div>;
+  
+  return user ? children : null;
+}
+
+// Usage in App.js
+function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </AuthProvider>
+  );
+}
+```
+
+## Next.js Integration
+
+### 1. Auth API Route
 ```javascript
-// Example error boundary or interceptor
-const handleApiError = (error) => {
-  if (error.status === 401) {
-    // Token expired or invalid
-    logout();
-    redirect('/login');
-  } else if (error.status === 403) {
-    // Permission denied
-    redirect('/unauthorized');
-  } else {
-    // Generic error handling
-    showErrorNotification(error.message);
-  }
-};
+// pages/api/auth/[...auth].js
+export default async function handler(req, res) {
+  const { method, query: { auth } } = req;
+  
+  // Forward request to authentication server
+  const response = await fetch(`${process.env.API_URL}/auth/${auth.join('/')}`, {
+    method: req.method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...req.headers
+    },
+    body: method !== 'GET' ? JSON.stringify(req.body) : undefined
+  });
+
+  const data = await response.json();
+  res.status(response.status).json(data);
+}
 ```
 
-## Security Features
-- Password hashing using bcrypt
-- JWT-based authentication
-- HTTP-only cookies for token storage
-- Email verification with OTP
-- Role-based access control
-- OAuth 2.0 integration with Google and Facebook
+### 2. Protected Page Example
+```jsx
+// pages/dashboard.js
+import { withAuth } from '../utils/withAuth';
+
+function Dashboard({ user }) {
+  return (
+    <div>
+      <h1>Welcome {user.name}!</h1>
+      <button onClick={async () => {
+        await fetch('/api/auth/logout');
+        window.location.href = '/login';
+      }}>
+        Logout
+      </button>
+    </div>
+  );
+}
+
+// Protect this page
+export const getServerSideProps = withAuth(async (context, user) => {
+  return {
+    props: { user }
+  };
+});
+```
+
+### 3. Auth HOC
+```javascript
+// utils/withAuth.js
+export function withAuth(gssp) {
+  return async (context) => {
+    const { req, res } = context;
+    const token = req.cookies.token;
+
+    if (!token) {
+      return {
+        redirect: {
+          destination: '/login',
+          permanent: false,
+        },
+      };
+    }
+
+    try {
+      // Verify user
+      const response = await fetch(`${process.env.API_URL}/auth/user`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call page's getServerSideProps
+      return await gssp(context, data.user);
+    } catch (err) {
+      return {
+        redirect: {
+          destination: '/login',
+          permanent: false,
+        },
+      };
+    }
+  };
+}
+```
+
+## Usage Examples
+
+### React App Setup
+```jsx
+// src/App.js
+import { AuthProvider } from './context/AuthContext';
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
+}
+```
+
+### Next.js App Setup
+```jsx
+// pages/_app.js
+import { AuthProvider } from '../context/AuthContext';
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <AuthProvider>
+      <Component {...pageProps} />
+    </AuthProvider>
+  );
+}
+
+export default MyApp;
+```
