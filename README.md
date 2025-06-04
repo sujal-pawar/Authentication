@@ -203,7 +203,4 @@ export default function LoginButtons() {
 - Keep your JWT secret secure and change it regularly
 - Implement rate limiting for authentication attempts
 - Consider adding additional security measures like CSRF protection
-
-## License
-
-MIT
+  
