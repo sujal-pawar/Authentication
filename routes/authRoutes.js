@@ -9,7 +9,8 @@ const {
   updateUserRole,
   register,     // Add these new imports
   login,
-  verifyEmail
+  verifyEmail,
+  resendVerification  // Add this import
 } = require('../controllers/authController');
 const { protect, authorize } = require('../middlewares/auth');
 
@@ -67,7 +68,9 @@ router.post('/admin/login', (req, res, next) => {
   login(req, res, next);
 });
 
+// Email verification routes
 router.post('/verify-email', verifyEmail);
+router.post('/resend-verification', resendVerification);
 
 // Get current logged in user
 router.get('/user', protect, getCurrentUser);

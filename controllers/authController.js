@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const { generateToken } = require('../config/passport');
+const { sendOTPEmail } = require('../utils/emailService');
 
 // @desc    Get current user
 // @route   GET /api/auth/user
@@ -146,22 +147,77 @@ exports.register = async (req, res) => {
     const otp = user.generateOTP();
     await user.save();
 
-    // TODO: Send OTP via email
-    // For development, return OTP
-    if (process.env.NODE_ENV === 'development') {
-      return res.status(200).json({
-        success: true,
-        message: `${req.isAdminLogin ? 'Admin' : 'User'} registered. Please verify your email.`,
-        data: { 
-          email,
-          otp: process.env.NODE_ENV === 'development' ? otp : undefined
-        }
+    // Send verification email
+    const emailSent = await sendOTPEmail(email, otp);
+
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error sending verification email'
       });
     }
 
     res.status(200).json({
       success: true,
-      message: `${req.isAdminLogin ? 'Admin' : 'User'} registered. Please verify your email.`
+      message: `${req.isAdminLogin ? 'Admin' : 'User'} registered. Please check your email for verification code.`,
+      data: {
+        email,
+        otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// @desc    Resend verification email
+// @route   POST /api/auth/resend-verification
+// @access  Public
+exports.resendVerification = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find user
+    const user = await User.findOne({ email }).select('+otpSecret +otpExpires');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if already verified
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified'
+      });
+    }
+
+    // Generate new OTP
+    const otp = user.generateOTP();
+    await user.save();
+
+    // Send verification email
+    const emailSent = await sendOTPEmail(email, otp);
+
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error sending verification email'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Verification email sent successfully',
+      data: {
+        email,
+        otp: process.env.NODE_ENV === 'development' ? otp : undefined
+      }
     });
   } catch (error) {
     res.status(500).json({

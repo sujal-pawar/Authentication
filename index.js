@@ -1,20 +1,22 @@
+// Load environment variables first
+const dotenv = require('dotenv');
+dotenv.config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const passport = require('passport');
-const dotenv = require('dotenv');
 const cors = require('cors');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const errorHandler = require('./middlewares/errorHandler');
-const { passport: passportConfig } = require('./config/passport');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 
-// Load environment variables
-dotenv.config();
+// Import passport config after env variables are loaded
+require('./config/passport');
 
 // Connect to database
 connectDB();
