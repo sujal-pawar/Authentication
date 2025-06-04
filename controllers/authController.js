@@ -259,19 +259,33 @@ exports.login = async (req, res) => {
         success: false,
         message: 'Invalid credentials'
       });
-    }
-
-    // Generate token and send response
-    const token = signToken(user._id);
+    }    // Generate token and send response
+    const token = generateToken(user);
     
     // Determine redirect URL based on role
     const redirectUrl = user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
 
+    // Set token in HTTP-only cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
     res.status(200).json({
       success: true,
-      token,
+      token, // Also send in response for non-cookie clients
       redirectUrl,
-      data: { user }
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified
+        }
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -287,6 +301,13 @@ exports.login = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and OTP'
+      });
+    }
 
     // Find user and include OTP fields
     const user = await User.findOne({ email }).select('+otpSecret +otpExpires');
@@ -309,10 +330,8 @@ exports.verifyEmail = async (req, res) => {
     user.isEmailVerified = true;
     user.otpSecret = undefined;
     user.otpExpires = undefined;
-    await user.save();
-
-    // Generate token and determine redirect
-    const token = signToken(user._id);
+    await user.save();    // Generate token and determine redirect
+    const token = generateToken(user);
     const redirectUrl = user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
 
     res.status(200).json({

@@ -33,7 +33,7 @@ app.use(cookieParser());
 
 // CORS middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL,
+  origin: process.env.NODE_ENV === 'production' ? process.env.CLIENT_URL : true,
   credentials: true
 }));
 

@@ -23,19 +23,46 @@ exports.protect = async (req, res, next) => {
         success: false,
         message: 'Not authorized to access this route'
       });
-    }
-
-    try {
+    }    try {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Add user from payload to request object
-      req.user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id);
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Check email verification for protected routes
+      if (!user.isEmailVerified && !req.path.includes('/verify-email')) {
+        return res.status(401).json({
+          success: false,
+          message: 'Please verify your email first'
+        });
+      }
+
+      req.user = user;
       next();
     } catch (error) {
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid token'
+        });
+      }
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Token expired'
+        });
+      }
       return res.status(401).json({
         success: false,
-        message: 'Not authorized to access this route'
+        message: 'Authentication failed'
       });
     }
   } catch (error) {

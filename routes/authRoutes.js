@@ -68,7 +68,7 @@ router.post('/admin/login', (req, res, next) => {
   login(req, res, next);
 });
 
-// Email verification routes
+// Email verification routes (public routes)
 router.post('/verify-email', verifyEmail);
 router.post('/resend-verification', resendVerification);
 

@@ -123,12 +123,15 @@ passport.use(
 // Function to generate JWT token
 const generateToken = (user) => {
   const payload = {
-    id: user.id,
+    id: user._id || user.id,
     email: user.email,
-    role: user.role
+    role: user.role,
+    isEmailVerified: user.isEmailVerified
   };
 
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
+  return jwt.sign(payload, process.env.JWT_SECRET, { 
+    expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+  });
 };
 
 module.exports = {
