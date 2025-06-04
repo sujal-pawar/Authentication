@@ -240,4 +240,7 @@ export default function LoginButtons() {
 - Keep your JWT secret secure and change it regularly
 - Implement rate limiting for authentication attempts
 - Consider adding additional security measures like CSRF protection
+
+  ![Screenshot 2025-06-05 005908](https://github.com/user-attachments/assets/560aca84-edb6-4434-aabf-0fa2b2ec4b50)
+
   
